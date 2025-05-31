@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ประวัติรายรับรายจ่าย</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Kanit', sans-serif;
+      background: #fff0f5;
+      padding: 30px;
+      text-align: center;
+    }
+    .summary-box {
+      background: #fff0f6;
+      padding: 20px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 0 10px #f3d6f6;
+    }
+    .summary {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 15px 25px;
+      font-weight: bold;
+      font-size: 18px;
+      min-width: 180px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .income { background: #e0ffe8; color: #0f8f3f; }
+    .expense { background: #ffe0e0; color: #d13a3a; }
+    .balance { background: #e0f1ff; color: #396aff; }
+
+    form {
+      margin: 20px auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    input, select, button {
+      padding: 10px;
+      font-family: 'Kanit';
+      font-size: 16px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #a450a4;
+      color: white;
+      cursor: pointer;
+    }
+    table {
+      width: 95%;
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+    }
+    th {
+      background-color: #f4d4f4;
+    }
+  </style>
+</head>
+<body>
+  <div class="summary-box">
+    <h2 id="header">กำลังโหลด...</h2>
+    <div class="summary">
+      <div class="card income">💰 รายรับ: <span id="totalIncome">0</span> บาท</div>
+      <div class="card expense">💸 รายจ่าย: <span id="totalExpense">0</span> บาท</div>
+      <div class="card balance">💼 คงเหลือ: <span id="balance">0</span> บาท</div>
+    </div>
+  </div>
+
+  <form id="addForm">
+    <input type="text" id="date" placeholder="วันที่ (เช่น 01/06/2025)" required>
+    <select id="type">
+      <option value="รายรับ">รายรับ</option>
+      <option value="รายจ่าย">รายจ่าย</option>
+    </select>
+    <input type="text" id="detail" placeholder="รายละเอียด" required>
+    <input type="number" id="amount" placeholder="จำนวนเงิน" required>
+    <button type="submit">➕ เพิ่มรายการ</button>
+  </form>
+
+  <h3>💰 รายรับ</h3>
+  <table>
+    <thead><tr><th>วันที่</th><th>รายละเอียด</th><th>จำนวน</th><th>จัดการ</th></tr></thead>
+    <tbody id="incomeTable"></tbody>
+  </table>
+
+  <h3>💸 รายจ่าย</h3>
+  <table>
+    <thead><tr><th>วันที่</th><th>รายละเอียด</th><th>จำนวน</th><th>จัดการ</th></tr></thead>
+    <tbody id="expenseTable"></tbody>
+  </table>
+
+  <canvas id="pieChart" height="100"></canvas>
+  <canvas id="barChart" height="120"></canvas>
+
+  <script>
+    const scriptURL = 'YOUR_GOOGLE_SCRIPT_URL'; // 👈 เปลี่ยนตรงนี้
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get("name");
+    document.getElementById('header').textContent = `ประวัติของ ${name}`;
+
+    async function loadData() {
+      const res = await fetch(`${scriptURL}?action=summary&name=${encodeURIComponent(name)}`);
+      const rows = await res.json();
+
+      const incomeTable = document.getElementById('incomeTable');
+      const expenseTable = document.getElementById('expenseTable');
+      incomeTable.innerHTML = '';
+      expenseTable.innerHTML = '';
+
+      let totalIncome = 0, totalExpense = 0;
+      const labels = [], incomeData = [], expenseData = [];
+
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${row.date}</td><td>${row.detail}</td><td>${row.amount}</td>
+          <td>
+            <button onclick="editEntry('${row.id}', '${row.date}', '${row.type}', '${row.detail}', '${row.amount}')">✏️</button>
+            <button onclick="deleteEntry('${row.id}')">🗑️</button>
+          </td>`;
+        if (row.type === "รายรับ") {
+          incomeTable.appendChild(tr);
+          totalIncome += parseFloat(row.amount);
+          labels.push(row.detail);
+          incomeData.push(parseFloat(row.amount));
+        } else {
+          expenseTable.appendChild(tr);
+          totalExpense += parseFloat(row.amount);
+          labels.push(row.detail);
+          expenseData.push(parseFloat(row.amount));
+        }
+      });
+
+      document.getElementById("totalIncome").textContent = totalIncome.toFixed(2);
+      document.getElementById("totalExpense").textContent = totalExpense.toFixed(2);
+      document.getElementById("balance").textContent = (totalIncome - totalExpense).toFixed(2);
+
+      new Chart(document.getElementById("pieChart"), {
+        type: 'pie',
+        data: {
+          labels: ['รายรับ', 'รายจ่าย'],
+          datasets: [{
+            data: [totalIncome, totalExpense],
+            backgroundColor: ['#b0f5c8', '#f8c2c2']
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { position: 'bottom' },
+            title: { display: true, text: 'สัดส่วนรายรับ - รายจ่าย' }
+          }
+        }
+      });
+
+      new Chart(document.getElementById("barChart"), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: 'รายรับ', data: incomeData, backgroundColor: '#b2e6d4' },
+            { label: 'รายจ่าย', data: expenseData, backgroundColor: '#f7c7cc' }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' },
+            title: { display: true, text: 'รายละเอียดรายรับ/รายจ่าย' }
+          }
+        }
+      });
+    }
+
+    document.getElementById('addForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const date = document.getElementById('date').value;
+      const type = document.getElementById('type').value;
+      const detail = document.getElementById('detail').value;
+      const amount = document.getElementById('amount').value;
+
+      await fetch(`${scriptURL}?action=add&date=${date}&name=${name}&type=${type}&detail=${detail}&amount=${amount}`);
+      e.target.reset();
+      loadData();
+    });
+
+    async function deleteEntry(id) {
+      if (confirm("แน่ใจว่าจะลบรายการนี้?")) {
+        await fetch(`${scriptURL}?action=delete&id=${id}`);
+        loadData();
+      }
+    }
+
+    function editEntry(id, date, type, detail, amount) {
+      const newDetail = prompt("แก้ไขรายการ:", detail);
+      const newAmount = prompt("แก้ไขจำนวน:", amount);
+      if (newDetail && newAmount) {
+        fetch(`${scriptURL}?action=edit&id=${id}&date=${date}&name=${name}&type=${type}&detail=${newDetail}&amount=${newAmount}`)
+          .then(() => loadData());
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
