@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ระบบรายรับรายจ่าย</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Kanit', sans-serif;
+      background: linear-gradient(to bottom, #fbeaff, #fff);
+      padding: 30px;
+      text-align: center;
+      color: #444;
+    }
+    h1 {
+      color: #9c4dcc;
+    }
+    #peopleContainer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    .person-button {
+      background: #d9b3ff;
+      border: none;
+      padding: 15px 25px;
+      font-size: 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .person-button:hover {
+      background: #c09be6;
+    }
+    #addForm {
+      margin-top: 40px;
+    }
+    input, button {
+      font-family: 'Kanit';
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+    }
+    button {
+      background-color: #9c4dcc;
+      color: white;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📋 ระบบบันทึกรายรับรายจ่าย</h1>
+
+  <div id="peopleContainer">กำลังโหลดรายชื่อ...</div>
+
+  <div id="addForm">
+    <input type="text" id="newPerson" placeholder="เพิ่มชื่อใหม่">
+    <button onclick="addPerson()">➕ เพิ่มชื่อ</button>
+  </div>
+
+  <script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbxLJPLkOegS8mMcdl4iDlA43fuBwcI-p57z4ZPW_Jd5TVFvZ48JywmKaomCHAU2nkGZ/exec'; // <<== เปลี่ยนตรงนี้
+
+    async function loadPeople() {
+      const res = await fetch(scriptURL + '?action=listPeople');
+      const people = await res.json();
+      const container = document.getElementById('peopleContainer');
+      container.innerHTML = '';
+      people.forEach(name => {
+        const btn = document.createElement('button');
+        btn.textContent = name;
+        btn.className = 'person-button';
+        btn.onclick = () => window.location.href = `person.html?name=${encodeURIComponent(name)}`;
+        container.appendChild(btn);
+      });
+    }
+
+    async function addPerson() {
+      const newName = document.getElementById('newPerson').value.trim();
+      if (!newName) return alert('กรุณากรอกชื่อ');
+
+      const res = await fetch(scriptURL + '?action=addPerson&name=' + encodeURIComponent(newName));
+      const result = await res.text();
+      alert(result);
+      document.getElementById('newPerson').value = '';
+      loadPeople(); // รีโหลดชื่อใหม่
+    }
+
+    loadPeople();
+  </script>
+</body>
+</html>
